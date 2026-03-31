@@ -26,6 +26,7 @@ const ranges = {
 
 function App() {
   const [form, setForm] = useState(defaultPayload)
+  const [activeTab, setActiveTab] = useState('input')
   const [result, setResult] = useState(null)
   const [simulationResult, setSimulationResult] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -60,6 +61,7 @@ function App() {
 
       const data = await response.json()
       setResult(data)
+      setActiveTab('prediksi')
       localStorage.setItem('pneumoshield:lastForm', JSON.stringify(form))
     } catch (err) {
       setError(err.message)
@@ -91,6 +93,7 @@ function App() {
 
       const data = await response.json()
       setSimulationResult(data)
+      setActiveTab('simulasi')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -122,115 +125,137 @@ function App() {
       <h1>PneumoShield</h1>
       <p className="subtitle">Model AI Radiomics CT + DVH untuk prediksi pneumonitis pasca RT toraks (NSCLC).</p>
 
-      <div className="actions">
-        <button type="button" onClick={loadLastInput}>Muat input terakhir</button>
-        <button type="button" onClick={runSimulation} disabled={simLoading}>{simLoading ? 'Simulasi...' : 'Simulasi 3 skenario'}</button>
-        <button type="button" onClick={exportResult} disabled={!result}>Ekspor hasil JSON</button>
-      </div>
-
-      <form onSubmit={submit} className="grid">
-        {[
-          ['age', 'Usia (tahun)'],
-          ['smoking_pack_years', 'Smoking pack-years'],
-          ['baseline_fev1', 'Baseline FEV1 (%)'],
-          ['v20', 'V20 (%)'],
-          ['mld', 'MLD (Gy)'],
-          ['radiomics_score', 'Radiomics score']
-        ].map(([key, label]) => (
-          <label key={key}>
-            {label}
-            <input
-              type="number"
-              value={form[key]}
-              step="0.1"
-              onChange={(e) => onChange(key, e.target.value)}
-              required
-            />
-          </label>
-        ))}
-
-        <label>
-          Stadium
-          <select value={form.stage} onChange={(e) => onChange('stage', e.target.value, false)}>
-            <option>I</option>
-            <option>II</option>
-            <option>III</option>
-            <option>IV</option>
-          </select>
-        </label>
-
-        <label className="checkbox">
-          <input
-            type="checkbox"
-            checked={form.copd}
-            onChange={(e) => setForm((prev) => ({ ...prev, copd: e.target.checked }))}
-          />
-          Riwayat COPD
-        </label>
-
-        <button type="submit" disabled={loading || validationWarnings.length > 0}>{loading ? 'Menghitung...' : 'Prediksi Risiko'}</button>
-      </form>
-
-      {validationWarnings.length > 0 && (
-        <ul className="warning">
-          {validationWarnings.map((item) => <li key={item}>{item}</li>)}
-        </ul>
-      )}
-
       {error && <p className="error">{error}</p>}
 
-      {result && (
-        <section className="card">
-          <h2>Hasil Prediksi</h2>
-          <div className="risk-bar">
-            <div className="risk-fill" style={{ width: `${(result.risk_ai_model * 100).toFixed(0)}%` }} />
-          </div>
-          <p><strong>AI model:</strong> {(result.risk_ai_model * 100).toFixed(1)}%</p>
-          <p><strong>DVH konvensional:</strong> {(result.risk_dvh_only * 100).toFixed(1)}%</p>
-          <p><strong>Delta:</strong> {(result.delta_risk * 100).toFixed(1)}%</p>
-          <p><strong>Kategori risiko:</strong> {result.risk_category}</p>
-          <p><strong>Confidence score:</strong> {(result.confidence_score * 100).toFixed(0)}%</p>
-          <p><strong>Status risiko:</strong> {result.high_risk_flag ? 'Tinggi' : 'Tidak tinggi'}</p>
-          <p><strong>Rekomendasi:</strong> {result.recommendation}</p>
+      <section className={`tab-panel ${activeTab === 'input' ? 'is-active' : ''}`}>
+        <div className="actions">
+          <button type="button" onClick={loadLastInput}>Muat input terakhir</button>
+          <button type="button" onClick={runSimulation} disabled={simLoading}>{simLoading ? 'Simulasi...' : 'Simulasi 3 skenario'}</button>
+          <button type="button" onClick={exportResult} disabled={!result}>Ekspor hasil JSON</button>
+        </div>
 
-          <h3>Faktor pendorong utama</h3>
-          <ul>
-            {result.key_drivers.map((driver) => <li key={driver}>{driver}</li>)}
+        <form onSubmit={submit} className="grid">
+          {[
+            ['age', 'Usia (tahun)'],
+            ['smoking_pack_years', 'Smoking pack-years'],
+            ['baseline_fev1', 'Baseline FEV1 (%)'],
+            ['v20', 'V20 (%)'],
+            ['mld', 'MLD (Gy)'],
+            ['radiomics_score', 'Radiomics score']
+          ].map(([key, label]) => (
+            <label key={key}>
+              {label}
+              <input
+                type="number"
+                value={form[key]}
+                step="0.1"
+                onChange={(e) => onChange(key, e.target.value)}
+                required
+              />
+            </label>
+          ))}
+
+          <label>
+            Stadium
+            <select value={form.stage} onChange={(e) => onChange('stage', e.target.value, false)}>
+              <option>I</option>
+              <option>II</option>
+              <option>III</option>
+              <option>IV</option>
+            </select>
+          </label>
+
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={form.copd}
+              onChange={(e) => setForm((prev) => ({ ...prev, copd: e.target.checked }))}
+            />
+            Riwayat COPD
+          </label>
+
+          <button type="submit" disabled={loading || validationWarnings.length > 0}>{loading ? 'Menghitung...' : 'Prediksi Risiko'}</button>
+        </form>
+
+        {validationWarnings.length > 0 && (
+          <ul className="warning">
+            {validationWarnings.map((item) => <li key={item}>{item}</li>)}
           </ul>
+        )}
+      </section>
 
-          <h3>Rencana follow-up</h3>
-          <ol>
-            {result.follow_up_plan.map((step) => <li key={step}>{step}</li>)}
-          </ol>
-        </section>
-      )}
+      <section className={`tab-panel ${activeTab === 'prediksi' ? 'is-active' : ''}`}>
+        {result ? (
+          <section className="card">
+            <h2>Hasil Prediksi</h2>
+            <div className="risk-bar">
+              <div className="risk-fill" style={{ width: `${(result.risk_ai_model * 100).toFixed(0)}%` }} />
+            </div>
+            <p><strong>AI model:</strong> {(result.risk_ai_model * 100).toFixed(1)}%</p>
+            <p><strong>DVH konvensional:</strong> {(result.risk_dvh_only * 100).toFixed(1)}%</p>
+            <p><strong>Delta:</strong> {(result.delta_risk * 100).toFixed(1)}%</p>
+            <p><strong>Kategori risiko:</strong> {result.risk_category}</p>
+            <p><strong>Confidence score:</strong> {(result.confidence_score * 100).toFixed(0)}%</p>
+            <p><strong>Status risiko:</strong> {result.high_risk_flag ? 'Tinggi' : 'Tidak tinggi'}</p>
+            <p><strong>Rekomendasi:</strong> {result.recommendation}</p>
 
-      {simulationResult && (
-        <section className="card">
-          <h2>Hasil Simulasi Skenario</h2>
-          <p><strong>Risiko baseline:</strong> {(simulationResult.base_risk_ai_model * 100).toFixed(1)}%</p>
-          <table>
-            <thead>
-              <tr>
-                <th>Skenario</th>
-                <th>Risiko AI</th>
-                <th>Delta vs baseline</th>
-                <th>Kategori</th>
-              </tr>
-            </thead>
-            <tbody>
-              {simulationResult.results.map((item) => (
-                <tr key={item.scenario_index}>
-                  <td>{item.label}</td>
-                  <td>{(item.risk_ai_model * 100).toFixed(1)}%</td>
-                  <td>{(item.delta_from_base * 100).toFixed(1)}%</td>
-                  <td>{item.risk_category}</td>
+            <h3>Faktor pendorong utama</h3>
+            <ul>
+              {result.key_drivers.map((driver) => <li key={driver}>{driver}</li>)}
+            </ul>
+
+            <h3>Rencana follow-up</h3>
+            <ol>
+              {result.follow_up_plan.map((step) => <li key={step}>{step}</li>)}
+            </ol>
+          </section>
+        ) : (
+          <p className="empty-state">Belum ada hasil prediksi. Jalankan prediksi dari tab Input.</p>
+        )}
+      </section>
+
+      <section className={`tab-panel ${activeTab === 'simulasi' ? 'is-active' : ''}`}>
+        {simulationResult ? (
+          <section className="card">
+            <h2>Hasil Simulasi Skenario</h2>
+            <p><strong>Risiko baseline:</strong> {(simulationResult.base_risk_ai_model * 100).toFixed(1)}%</p>
+            <table>
+              <thead>
+                <tr>
+                  <th>Skenario</th>
+                  <th>Risiko AI</th>
+                  <th>Delta vs baseline</th>
+                  <th>Kategori</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
+              </thead>
+              <tbody>
+                {simulationResult.results.map((item) => (
+                  <tr key={item.scenario_index}>
+                    <td>{item.label}</td>
+                    <td>{(item.risk_ai_model * 100).toFixed(1)}%</td>
+                    <td>{(item.delta_from_base * 100).toFixed(1)}%</td>
+                    <td>{item.risk_category}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        ) : (
+          <p className="empty-state">Belum ada hasil simulasi. Gunakan tombol simulasi dari tab Input.</p>
+        )}
+      </section>
+
+      <nav className="bottom-nav" aria-label="Navigasi mobile">
+        <button type="button" className={activeTab === 'input' ? 'active' : ''} onClick={() => setActiveTab('input')}>
+          Input
+        </button>
+        <button type="button" className={activeTab === 'prediksi' ? 'active' : ''} onClick={() => setActiveTab('prediksi')}>
+          Prediksi
+        </button>
+        <button type="button" className={activeTab === 'simulasi' ? 'active' : ''} onClick={() => setActiveTab('simulasi')}>
+          Simulasi
+        </button>
+      </nav>
     </main>
   )
 }
